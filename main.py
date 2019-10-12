@@ -65,7 +65,10 @@ async def send_websocket_fake(websocket, queue):
 
 @app.get("{full_path:path}")
 def read_all(full_path: str, request: Request):
-    r = requests.get('https://{}/{}'.format(server, full_path), headers=request.headers)
+    params = None
+    if request.query_params:
+        params = request.query_params
+    r = requests.get('https://{}/{}'.format(server, full_path), params=params, headers=request.headers)
     try:
         print(r.json())
         return r.json()
