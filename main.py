@@ -75,8 +75,9 @@ def read_all(full_path: str, request: Request):
     return r.content
 
 @app.post("{full_path:path}")
-def post_all(full_path: str, data, request: Request):
-    r = requests.post('https://{}/{}'.format(server, full_path), data=data, headers=request.headers)
+def post_all(full_path: str, item: dict, request: Request):
+    print(item)
+    r = requests.post('https://{}/{}'.format(server, full_path), json=item, headers=request.headers)
     try:
         print(r.json())
         return r.json()
@@ -84,6 +85,23 @@ def post_all(full_path: str, data, request: Request):
         pass
 
     return r.content
+
+@app.put("{full_path:path}")
+def put_all(full_path: str, item: dict, request: Request):
+    print(item)
+    r = requests.put('https://{}/{}'.format(server, full_path), json=item, headers=request.headers)
+    try:
+        print(r.json())
+        return r.json()
+    except:
+        pass
+
+    return r.content
+
+@app.delete("{full_path:path}")
+def delete_all(full_path: str, request: Request):
+    r = requests.delete('https://{}/{}'.format(server, full_path), headers=request.headers)
+    return r.text
 
 @app.options("/{full_path:path}")
 def options_all(full_path: str):
