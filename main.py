@@ -63,6 +63,10 @@ async def send_websocket_fake(websocket, queue):
         await websocket.send_text(data)
         queue.task_done()
 
+@app.get("/debug")
+def debug():
+    return {"debug": "ok"}
+
 @app.get("{full_path:path}")
 def read_all(full_path: str, request: Request):
     params = None
