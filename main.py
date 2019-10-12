@@ -7,13 +7,22 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
 from starlette.requests import Request
 
+from lib.hep import HEPPacket
 
 app = FastAPI()
+config = {
+    "hep_server": "10.41.0.2",
+    "hep_port": 1234,
+    "hep_id": "1234",
+    "hep_pass": "1234"
+}
 server = 'demo.wazo.community'
 
 origins = [
     "*",
 ]
+
+hep_client = HEPPacket(config)
 
 @app.websocket("/api/asterisk/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -25,8 +34,8 @@ async def websocket_endpoint(websocket: WebSocket):
     await queue_wazo.join()
     await queue_fake.join()
 
-    group1 = asyncio.gather(get_websocket_fake(websocket, queue_fake))
-    group2 = asyncio.gather(send_websocket_fake(websocket, queue_wazo))
+    group1 = asyncio.gather(get_websocket_fake(websocket, queue_fake, True))
+    group2 = asyncio.gather(send_websocket_fake(websocket, queue_wazo, True))
     all_groups = await asyncio.gather(group1, group2)
 
 @app.websocket("/api/websocketd")
@@ -48,17 +57,23 @@ def get_token(url):
     params = dict(x.split('=') for x in str(url).split('&'))
     return params.get('token')
 
-async def get_websocket_fake(websocket, queue):
+async def get_websocket_fake(websocket, queue, hep=None):
     while True:
         print('Worker to received data from fake websocket')
         data = await websocket.receive_text()
+        if hep:
+            hep_client.add_payload(data)
+            hep_client.send()
         print('Data received from websocket fake:', data)
         queue.put_nowait(data)
 
-async def send_websocket_fake(websocket, queue):
+async def send_websocket_fake(websocket, queue, hep=None):
     while True:
         print('Worker to send data to fake websocket')
         data = await queue.get()
+        if hep:
+            hep_client.add_payload(data)
+            hep_client.send()
         print('Data received from websocket wazo:', data)
         await websocket.send_text(data)
         queue.task_done()
