@@ -16,7 +16,7 @@ from lib.hep import HEPPacket
 
 config = {
     "wazo_server": "demo.wazo.community",
-    "hep_server": "10.41.0.2",
+    "hep_server": "127.0.0.1",
     "hep_port": 1234,
     "hep_id": "1234",
     "hep_pass": "1234",
