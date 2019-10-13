@@ -53,6 +53,7 @@ class HEPPacket(object):
         chunks.append({'type': 12, 'content': 0, 'pack': 'I'}) # Capture Agent ID
         chunks.append({'type': 17, 'content': 'callid'.encode(), 'pack': '4s'}) # Call-ID
         chunks.append({'type': 15, 'content': self.message['payload'].encode(), 'pack': '{}s'.format(len(self.message['payload']))}) # Payload
+        chunks.append({'type': 14, 'content': self.message['capture_pass'].encode(), 'pack': '{}s'.format(len(self.message['capture_pass']))}) # Capture agent password
 
         buffers = list()
         buf = 0
