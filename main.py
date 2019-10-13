@@ -5,6 +5,7 @@ import websockets
 import requests
 import asyncio
 
+from datetime import datetime
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocket
@@ -12,20 +13,29 @@ from starlette.requests import Request
 
 from lib.hep import HEPPacket
 
-app = FastAPI()
+
 config = {
+    "wazo_server": "demo.wazo.community",
     "hep_server": "10.41.0.2",
     "hep_port": 1234,
     "hep_id": "1234",
-    "hep_pass": "1234"
+    "hep_pass": "1234",
+    "cors": {
+        "origins": [
+            "*",
+        ]
+    }
 }
-server = 'demo.wazo.community'
 
-origins = [
-    "*",
-]
-
+app = FastAPI()
 hep_client = HEPPacket(config)
+
+def wazo_log(type, log):
+    now = datetime.now()
+    dt = now.strftime("%d/%m/%Y %H:%M:%S")
+    print("{} Log for {}: {}".format(dt, type, log))
+
+wazo_log('core', 'starting...')
 
 @app.websocket("/api/asterisk/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -62,22 +72,28 @@ def get_token(url):
 
 async def get_websocket_fake(websocket, queue, hep=None):
     while True:
-        print('Worker to received data from fake websocket')
+        type = 'websocket'
+        if hep:
+            type = 'sip'
+        wazo_log(type, 'Worker to received data from fake websocket')
         data = await websocket.receive_text()
         if hep:
             hep_client.add_payload(data)
             hep_client.send()
-        print('Data received from websocket fake:', data)
+        wazo_log(type, 'Received from websocket fake: {}'.format(data))
         queue.put_nowait(data)
 
 async def send_websocket_fake(websocket, queue, hep=None):
     while True:
-        print('Worker to send data to fake websocket')
+        type = 'websocket'
+        if hep:
+            type = 'sip'
+        wazo_log(type, 'Worker to send data to fake websocket')
         data = await queue.get()
         if hep:
             hep_client.add_payload(data)
             hep_client.send()
-        print('Data received from websocket wazo:', data)
+        wazo_log(type, 'Received from websocket wazo: {}'.format(data))
         await websocket.send_text(data)
         queue.task_done()
 
@@ -90,9 +106,9 @@ def read_all(full_path: str, request: Request):
     params = None
     if request.query_params:
         params = request.query_params
-    r = requests.get('https://{}/{}'.format(server, full_path), params=params, headers=request.headers)
+    r = requests.get('https://{}/{}'.format(config['wazo_server'], full_path), params=params, headers=request.headers)
     try:
-        print(r.json())
+        wazo_log('http', r.json())
         return r.json()
     except:
         pass
@@ -101,10 +117,9 @@ def read_all(full_path: str, request: Request):
 
 @app.post("{full_path:path}")
 def post_all(full_path: str, item: dict, request: Request):
-    print(item)
-    r = requests.post('https://{}/{}'.format(server, full_path), json=item, headers=request.headers)
+    r = requests.post('https://{}/{}'.format(config['wazo_server'], full_path), json=item, headers=request.headers)
     try:
-        print(r.json())
+        wazo_log('http', r.json())
         return r.json()
     except:
         pass
@@ -113,10 +128,9 @@ def post_all(full_path: str, item: dict, request: Request):
 
 @app.put("{full_path:path}")
 def put_all(full_path: str, item: dict, request: Request):
-    print(item)
-    r = requests.put('https://{}/{}'.format(server, full_path), json=item, headers=request.headers)
+    r = requests.put('https://{}/{}'.format(config['wazo_server'], full_path), json=item, headers=request.headers)
     try:
-        print(r.json())
+        wazo_log('http', r.json())
         return r.json()
     except:
         pass
@@ -125,23 +139,23 @@ def put_all(full_path: str, item: dict, request: Request):
 
 @app.delete("{full_path:path}")
 def delete_all(full_path: str, request: Request):
-    r = requests.delete('https://{}/{}'.format(server, full_path), headers=request.headers)
+    r = requests.delete('https://{}/{}'.format(config['wazo_server'], full_path), headers=request.headers)
     return r.text
 
 @app.options("/{full_path:path}")
 def options_all(full_path: str):
-    r = requests.options('{}/{}'.format(server, full_path))
+    r = requests.options('{}/{}'.format(wazo['wazo_server'], full_path))
     return r.text
 
 async def client_ws_sip(queue_wazo, queue_fake):
-    uri = "wss://{}/api/asterisk/ws".format(server)
+    uri = "wss://{}/api/asterisk/ws".format(config['wazo_server'])
     async with websockets.connect(uri, subprotocols=["sip"]) as ws:
         group1 = asyncio.gather(get_websocket_wazo(ws, queue_wazo))
         group2 = asyncio.gather(send_websocket_wazo(ws, queue_fake))
         all_groups = await asyncio.gather(group1, group2)
 
 async def client_ws_wazo(token, queue_wazo, queue_fake):
-    uri = "wss://{}/api/websocketd/?version=2&token={}".format(server, token)
+    uri = "wss://{}/api/websocketd/?version=2&token={}".format(config['wazo_server'], token)
     async with websockets.connect(uri) as ws:
         group1 = asyncio.gather(get_websocket_wazo(ws, queue_wazo))
         group2 = asyncio.gather(send_websocket_wazo(ws, queue_fake))
@@ -149,21 +163,21 @@ async def client_ws_wazo(token, queue_wazo, queue_fake):
 
 async def get_websocket_wazo(websocket, queue):
     while True:
-        print('Get data from wazo websocket...')
+        wazo_log('websocket', 'Get data from wazo websocket...')
         data = await websocket.recv()
-        print('Received from wazo', data)
+        wazo_log('websocket', 'Received from wazo: {}'.format(data))
         queue.put_nowait(data)
 
 async def send_websocket_wazo(websocket, queue):
     while True:
         data = await queue.get()
-        print('Received from wazo queue', data)
+        wazo_log('websocket', 'Received from wazo queue: {}'.format(data))
         await websocket.send(data)
         queue.task_done()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=config['cors']['origins'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
