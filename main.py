@@ -15,9 +15,10 @@ from lib.hep import HEPPacket
 
 
 config = {
+    "debug": True,
     "wazo_server": "demo.wazo.community",
-    "hep_server": "127.0.0.1",
-    "hep_port": 1234,
+    "hep_server": "10.41.0.2",
+    "hep_port": 9060,
     "hep_id": "1234",
     "hep_pass": "1234",
     "cors": {
@@ -31,9 +32,10 @@ app = FastAPI()
 hep_client = HEPPacket(config)
 
 def wazo_log(type, log):
-    now = datetime.now()
-    dt = now.strftime("%d/%m/%Y %H:%M:%S")
-    print("{} Log for {}: {}".format(dt, type, log))
+    if config['debug']:
+        now = datetime.now()
+        dt = now.strftime("%d/%m/%Y %H:%M:%S")
+        print("{} Log for {}: {}".format(dt, type, log))
 
 wazo_log('core', 'starting...')
 
@@ -79,7 +81,8 @@ async def get_websocket_fake(websocket, queue, hep=None):
         data = await websocket.receive_text()
         if hep:
             hep_client.add_payload(data)
-            hep_client.send()
+            buf = hep_client.encode()
+            hep_client.send(buf)
         wazo_log(type, 'Received from websocket fake: {}'.format(data))
         queue.put_nowait(data)
 
@@ -92,7 +95,8 @@ async def send_websocket_fake(websocket, queue, hep=None):
         data = await queue.get()
         if hep:
             hep_client.add_payload(data)
-            hep_client.send()
+            buf = hep_client.encode()
+            hep_client.send(buf)
         wazo_log(type, 'Received from websocket wazo: {}'.format(data))
         await websocket.send_text(data)
         queue.task_done()
