@@ -38,12 +38,12 @@ class HEPPacket(object):
         chunks.append({'type': 2, 'content': self.message['protocol'], 'pack': 'B'}) # Proto ID
         chunks.append({'type': 3, 'content': socket.inet_aton(self.message['src_ip']), 'pack': '4s'}) # SRC addr
         chunks.append({'type': 4, 'content': socket.inet_aton(self.message['dst_ip']), 'pack': '4s'}) # DST addr
-        chunks.append({'type': 7, 'content': self.message['src_port'], 'pack': '>H'}) # SRC port
-        chunks.append({'type': 8, 'content': self.message['dst_port'], 'pack': '>H'}) # DST port
-        chunks.append({'type': 9, 'content': int(time.time()), 'pack': '>I'}) # Timestamp
-        chunks.append({'type': 10, 'content': 0, 'pack': '>I'}) # Microseconds
+        chunks.append({'type': 7, 'content': self.message['src_port'], 'pack': '!H'}) # SRC port
+        chunks.append({'type': 8, 'content': self.message['dst_port'], 'pack': '!H'}) # DST port
+        chunks.append({'type': 9, 'content': int(time.time()), 'pack': '!I'}) # Timestamp
+        chunks.append({'type': 10, 'content': 0, 'pack': '!I'}) # Microseconds
         chunks.append({'type': 11, 'content': self.message['payload_type'], 'pack': 'B'}) # Payload Type
-        chunks.append({'type': 12, 'content': self.message['capture_id'], 'pack': '>I'}) # Capture Agent ID
+        chunks.append({'type': 12, 'content': self.message['capture_id'], 'pack': '!I'}) # Capture Agent ID
         chunks.append({'type': 14, 'content': self.message['capture_pass'].encode(), 'pack': '{}s'.format(len(self.message['capture_pass']))}) # Capture agent password
         #chunks.append({'type': 17, 'content': 'call-id'.encode(), 'pack': '{}s'.format(len('call-id'))}) # Correlation ID
         chunks.append({'type': 15, 'content': self.message['payload'].encode(), 'pack': '{}s'.format(len(self.message['payload']))}) # Payload
@@ -51,13 +51,13 @@ class HEPPacket(object):
         for chunk in chunks:
             pack_size = struct.calcsize(chunk['pack']) + 6
             packet = bytearray(pack_size)
-            struct.pack_into('>H', packet, 0, self.message['vendor_id'])
-            struct.pack_into('>H', packet, 2, chunk['type'])
-            struct.pack_into('>H', packet, 4, pack_size)
+            struct.pack_into('!H', packet, 0, self.message['vendor_id'])
+            struct.pack_into('!H', packet, 2, chunk['type'])
+            struct.pack_into('!H', packet, 4, pack_size)
             struct.pack_into(chunk['pack'], packet, 6, chunk['content'])
             buffer += packet
 
-        total_len = struct.pack_into('>H', buffer, 4, len(buffer))
+        total_len = struct.pack_into('!H', buffer, 4, len(buffer))
         return buffer
 
     def decode(self, payload):
